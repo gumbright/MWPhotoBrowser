@@ -15,6 +15,8 @@
 #define PADDING                  10
 #define ACTION_SHEET_OLD_ACTIONS 2000
 
+#define ACTION_SHEET_DELETECONFIRMATION 3000
+
 @implementation MWPhotoBrowser
 
 #pragma mark - Init
@@ -187,6 +189,7 @@
     if (self.displayActionButton) {
         _actionButton = [[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemAction target:self action:@selector(actionButtonPressed:)];
     }
+    _deleteButton = [[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemTrash target:self action:@selector(trashButtonPressed:)];
     
     // Update
     [self reloadData];
@@ -253,18 +256,19 @@
     NSMutableArray *items = [[NSMutableArray alloc] init];
 
     // Left button - Grid
-    if (_enableGrid) {
-        hasItems = YES;
-        NSString *buttonName = @"UIBarButtonItemGrid";
-        if (SYSTEM_VERSION_LESS_THAN(@"7")) buttonName = @"UIBarButtonItemGridiOS6";
-        [items addObject:[[UIBarButtonItem alloc] initWithImage:[UIImage imageNamed:[NSString stringWithFormat:@"MWPhotoBrowser.bundle/images/%@.png", buttonName]] style:UIBarButtonItemStylePlain target:self action:@selector(showGridAnimated)]];
-    } else {
-        [items addObject:fixedSpace];
-    }
+//    if (_enableGrid) {
+//        hasItems = YES;
+//        NSString *buttonName = @"UIBarButtonItemGrid";
+//        if (SYSTEM_VERSION_LESS_THAN(@"7")) buttonName = @"UIBarButtonItemGridiOS6";
+//        [items addObject:[[UIBarButtonItem alloc] initWithImage:[UIImage imageNamed:[NSString stringWithFormat:@"MWPhotoBrowser.bundle/images/%@.png", buttonName]] style:UIBarButtonItemStylePlain target:self action:@selector(showGridAnimated)]];
+//    } else {
+//        [items addObject:fixedSpace];
+//    }
+    [items addObject:_deleteButton];
+    hasItems = YES;
 
     // Middle - Nav
     if (_previousButton && _nextButton && numberOfPhotos > 1) {
-        hasItems = YES;
         [items addObject:flexSpace];
         [items addObject:_previousButton];
         [items addObject:flexSpace];
@@ -1448,6 +1452,19 @@
 }
 
 #pragma mark - Actions
+- (void)trashButtonPressed:(id)sender
+{
+//confirm the delete
+    UIActionSheet* confirm = [[UIActionSheet alloc] initWithTitle:@"Are you sure?"
+                                                         delegate:self
+                                                cancelButtonTitle:@"No, do not delete photo"
+                                                destructiveButtonTitle:@"Yes, delete photo"
+                                                otherButtonTitles: nil];
+    confirm.tag = ACTION_SHEET_DELETECONFIRMATION;
+    
+    [confirm showInView:self.view];
+    
+}
 
 - (void)actionButtonPressed:(id)sender {
     if (_actionsSheet) {
@@ -1530,7 +1547,8 @@
 
 #pragma mark - Action Sheet Delegate
 
-- (void)actionSheet:(UIActionSheet *)actionSheet didDismissWithButtonIndex:(NSInteger)buttonIndex {
+- (void)actionSheet:(UIActionSheet *)actionSheet didDismissWithButtonIndex:(NSInteger)buttonIndex
+{
     if (actionSheet.tag == ACTION_SHEET_OLD_ACTIONS) {
         // Old Actions
         _actionsSheet = nil;
@@ -1544,6 +1562,32 @@
             }
         }
     }
+    else if (actionSheet.tag == ACTION_SHEET_DELETECONFIRMATION)
+    {
+        //tell delegate to remove photo
+        [self.delegate photoBrowser:self deletePhotoAtIndex:self.currentIndex];
+        
+        if (self.currentIndex > 0)
+        {
+            dispatch_async(dispatch_get_main_queue(), ^{
+                [self setCurrentPhotoIndex:self.currentIndex - 1];
+                [self reloadData];
+            });
+        }
+        else if ([self.delegate numberOfPhotosInPhotoBrowser:self] > 1)
+        {
+            dispatch_async(dispatch_get_main_queue(), ^{
+                [self setCurrentPhotoIndex:self.currentIndex];
+                [self reloadData];
+            });
+        }
+        else
+        {
+            [self.navigationController popViewControllerAnimated:YES];
+            //lets get out of here
+        }
+    }
+    
     [self hideControlsAfterDelay]; // Continue as normal...
 }
 
