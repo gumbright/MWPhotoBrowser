@@ -1532,6 +1532,12 @@
                         [weakSelf hideControlsAfterDelay];
                         [weakSelf hideProgressHUD:YES];
                     }];
+ 
+                    if ( [self.activityViewController respondsToSelector:@selector(popoverPresentationController)] ) {
+                        // iOS8
+                        self.activityViewController.popoverPresentationController.barButtonItem =
+                        sender;
+                    }
                     [self presentViewController:self.activityViewController animated:YES completion:nil];
                     
                 }
